@@ -11,13 +11,13 @@
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+-   [Simple, fast routing engine](https://laravel.com/docs/routing).
+-   [Powerful dependency injection container](https://laravel.com/docs/container).
+-   Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
+-   Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
+-   Database agnostic [schema migrations](https://laravel.com/docs/migrations).
+-   [Robust background job processing](https://laravel.com/docs/queues).
+-   [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
@@ -35,14 +35,14 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 
 ### Premium Partners
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+-   **[Vehikl](https://vehikl.com)**
+-   **[Tighten Co.](https://tighten.co)**
+-   **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
+-   **[64 Robots](https://64robots.com)**
+-   **[Curotec](https://www.curotec.com/services/technologies/laravel)**
+-   **[DevSquad](https://devsquad.com/hire-laravel-developers)**
+-   **[Redberry](https://redberry.international/laravel-development)**
+-   **[Active Logic](https://activelogic.com)**
 
 ## Contributing
 
@@ -62,17 +62,17 @@ The Laravel framework is open-sourced software licensed under the [MIT license](
 
 # Calendar API
 
-A Laravel-based backend API for managing calendar events, designed to integrate seamlessly with FullCalendar and Google Calendar. This project supports user authentication, event CRUD operations, and Google OAuth integration.
+A Laravel-powered backend API for managing calendar events, designed for seamless integration with FullCalendar and Google Calendar. This project supports user authentication, event CRUD operations, and Google OAuth for calendar synchronization.
 
 ---
 
 ## Features
 
-- **User Authentication** (Laravel Sanctum/JWT)
-- **Event Management**: Create, read, update, and delete events
-- **Google Calendar Sync**: Import/export events with Google Calendar
-- **FullCalendar Integration**: Designed for use with modern frontend frameworks (e.g., Vue.js)
-- **Rich Event Fields**: Supports recurrence, attendees, reminders, and more
+-   **User Authentication** (Laravel Sanctum/JWT)
+-   **Event Management**: Create, read, update, and delete events
+-   **Google Calendar Sync**: Import/export events with Google Calendar
+-   **FullCalendar Integration**: Built for use with modern frontends (e.g., Vue.js)
+-   **Comprehensive Event Fields**: Supports recurrence, attendees, reminders, and more
 
 ---
 
@@ -80,45 +80,50 @@ A Laravel-based backend API for managing calendar events, designed to integrate 
 
 ### Prerequisites
 
-- PHP 8.1+
-- Composer
-- MySQL or compatible database
-- Node.js & npm (for frontend integration)
-- Google Cloud Project (for OAuth)
+-   PHP 8.1 or higher
+-   Composer
+-   MySQL or compatible database
+-   Node.js & npm (for frontend integration)
+-   Google Cloud Project (for OAuth)
 
 ### Installation
 
 1. **Clone the repository**
-   ```sh
-   git clone https://github.com/your-username/calendarapi.git
-   cd calendarapi
-   ```
+
+    ```sh
+    git clone https://github.com/your-username/calendarapi.git
+    cd calendarapi
+    ```
 
 2. **Install dependencies**
-   ```sh
-   composer install
-   ```
+
+    ```sh
+    composer install
+    ```
 
 3. **Copy and configure environment**
-   ```sh
-   cp .env.example .env
-   # Edit .env with your database and Google credentials
-   ```
+
+    ```sh
+    cp .env.example .env
+    # Edit .env with your database and Google credentials
+    ```
 
 4. **Generate application key**
-   ```sh
-   php artisan key:generate
-   ```
+
+    ```sh
+    php artisan key:generate
+    ```
 
 5. **Run migrations and seeders**
-   ```sh
-   php artisan migrate --seed
-   ```
+
+    ```sh
+    php artisan migrate --seed
+    ```
 
 6. **Start the development server**
-   ```sh
-   php artisan serve
-   ```
+    ```sh
+    php artisan serve
+    ```
 
 ---
 
@@ -127,23 +132,23 @@ A Laravel-based backend API for managing calendar events, designed to integrate 
 1. Create a project in [Google Cloud Console](https://console.cloud.google.com/).
 2. Enable the Google Calendar API.
 3. Create OAuth 2.0 credentials and set the redirect URI to:
-   ```
-   http://127.0.0.1:8888/api/auth/google/callback
-   ```
+    ```
+    http://127.0.0.1:8888/api/auth/google/callback
+    ```
 4. Add your `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT` to your `.env` file.
 
 ---
 
 ## API Endpoints
 
-- `POST /api/login` — User login
-- `POST /api/register` — User registration
-- `GET /api/events` — List events
-- `POST /api/events` — Create event
-- `PUT /api/events/{id}` — Update event
-- `DELETE /api/events/{id}` — Delete event
-- `GET /api/auth/google/redirect` — Start Google OAuth
-- `GET /api/auth/google/callback` — Handle Google OAuth callback
+-   `POST /api/login` — User login
+-   `POST /api/register` — User registration
+-   `GET /api/events` — List events
+-   `POST /api/events` — Create event
+-   `PUT /api/events/{id}` — Update event
+-   `DELETE /api/events/{id}` — Delete event
+-   `GET /api/auth/google/redirect` — Start Google OAuth
+-   `GET /api/auth/google/callback` — Handle Google OAuth callback
 
 ---
 
@@ -156,7 +161,7 @@ Set your frontend to communicate with the API at `http://127.0.0.1:8888`.
 
 ## Contributing
 
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+Pull requests are welcome! For major changes, please open an issue first to discuss your ideas.
 
 ---
 
