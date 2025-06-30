@@ -27,7 +27,7 @@ class GoogleCalendarController extends Controller
             $this->pushLocalEvents($request);
 
             $user = auth()->user();
-            if (!$user || !$user->google_token) {
+            if (!$user || !$user->google_refresh_token) {
                 return $this->errorResponse('User is not connected to Google Calendar.', 403);
             }
             $params = $request->only(['timeMin', 'timeMax', 'maxResults']);
@@ -51,7 +51,7 @@ class GoogleCalendarController extends Controller
     {
         try {
             $user = auth()->user();
-            if (!$user || !$user->google_token) {
+            if (!$user || !$user->google_refresh_token) {
                 return $this->errorResponse('User is not connected to Google Calendar.', 403);
             }
             $eventData = $request->input('event');
@@ -67,7 +67,7 @@ class GoogleCalendarController extends Controller
     {
         try {
             $user = auth()->user();
-            if (!$user || !$user->google_token) {
+            if (!$user || !$user->google_refresh_token) {
                 return $this->errorResponse('User is not connected to Google Calendar.', 403);
             }
             $event = $this->calendarService->getEvent($user, $eventId);
@@ -82,18 +82,16 @@ class GoogleCalendarController extends Controller
     {
         try {
             $user = auth()->user();
-            if (!$user || !$user->google_token) {
+            if (!$user || !$user->google_refresh_token) {
                 return $this->errorResponse('User is not connected to Google Calendar.', 403);
             }
 
-            // Accept both wrapped and unwrapped payloads
             $incoming = $request->input('event') ?? $request->all();
 
             if (empty($incoming) || !is_array($incoming)) {
                 return $this->errorResponse('No event data provided.', 422);
             }
 
-            // Helper to extract a date string from possible array or string
             $extractDateString = function ($value) {
                 if (is_array($value)) {
                     return $value['dateTime'] ?? $value['date'] ?? null;
@@ -104,36 +102,35 @@ class GoogleCalendarController extends Controller
             $startString = $extractDateString($incoming['start'] ?? null);
             $endString = $extractDateString($incoming['end'] ?? null);
 
-            // Map incoming data to Google Calendar format
             $eventData = [
                 'summary' => $incoming['title'] ?? $incoming['summary'] ?? null,
+                'description' => $incoming['description'] ?? null,
+                'location' => $incoming['location'] ?? null,
+                'attendees' => $incoming['attendees'] ?? [],
+                'colorId' => $incoming['colorId'] ?? null,
+                'visibility' => $incoming['visibility'] ?? null,
+                'status' => $incoming['status'] ?? null,
+                'reminders' => $incoming['reminders'] ?? ['useDefault' => true],
+                'recurrence' => $incoming['recurrence'] ?? null,
             ];
 
-            // Handle start
             if (!empty($incoming['allDay'])) {
-                $eventData['start'] = ['date' => (new \DateTime($startString))->format('Y-m-d')];
+                $eventData['start'] = [
+                    'date' => (new \DateTime($startString))->format('Y-m-d')
+                ];
+                $eventData['end'] = [
+                    'date' => (new \DateTime($endString))->format('Y-m-d')
+                ];
             } else {
-                $eventData['start'] = ['dateTime' => (new \DateTime($startString))->format(\DateTime::RFC3339)];
+                $eventData['start'] = [
+                    'dateTime' => (new \DateTime($startString))->format(\DateTime::RFC3339),
+                    'timeZone' => 'Asia/Kathmandu'
+                ];
+                $eventData['end'] = [
+                    'dateTime' => (new \DateTime($endString))->format(\DateTime::RFC3339),
+                    'timeZone' => 'Asia/Kathmandu'
+                ];
             }
-
-            // Handle end
-            if (empty($endString)) {
-                $endDate = new \DateTime($startString);
-                $endDate->modify('+1 hour');
-                if (!empty($incoming['allDay'])) {
-                    $eventData['end'] = ['date' => $endDate->format('Y-m-d')];
-                } else {
-                    $eventData['end'] = ['dateTime' => $endDate->format(\DateTime::RFC3339)];
-                }
-            } else {
-                if (!empty($incoming['allDay'])) {
-                    $eventData['end'] = ['date' => (new \DateTime($endString))->format('Y-m-d')];
-                } else {
-                    $eventData['end'] = ['dateTime' => (new \DateTime($endString))->format(\DateTime::RFC3339)];
-                }
-            }
-
-            // Add more fields as needed (description, location, etc.)
 
             $event = $this->calendarService->updateEvent($user, $eventId, $eventData);
             return $this->successResponse($event, 'Event updated on Google Calendar successfully.');
@@ -147,7 +144,7 @@ class GoogleCalendarController extends Controller
     {
         try {
             $user = auth()->user();
-            if (!$user || !$user->google_token) {
+            if (!$user || !$user->google_refresh_token) {
                 return $this->errorResponse('User is not connected to Google Calendar.', 403);
             }
             $this->calendarService->deleteEvent($user, $eventId);
@@ -164,7 +161,7 @@ class GoogleCalendarController extends Controller
     {
         try {
             $user = auth()->user();
-            if (!$user || !$user->google_token) {
+            if (!$user || !$user->google_refresh_token) {
                 return $this->errorResponse('User is not connected to Google Calendar.', 403);
             }
 
@@ -176,6 +173,14 @@ class GoogleCalendarController extends Controller
                 try {
                     $eventData = [
                         'summary' => $event->title,
+                        'description' => $event->description,
+                        'location' => $event->location,
+                        'attendees' => $event->attendees,
+                        'reminders' => $event->reminders,
+                        'recurrence' => $event->recurrence,
+                        'status' => $event->status,
+                        'colorId' => $event->colorId,
+                        'visibility' => $event->visibility,
                     ];
                     // Handle start
                     if ($event->allDay) {
@@ -199,7 +204,15 @@ class GoogleCalendarController extends Controller
                             $eventData['end'] = ['dateTime' => (new \DateTime($event->end))->format(\DateTime::RFC3339)];
                         }
                     }
-                    // Add more fields as needed
+                    // Handle meeting URL as conferenceData if present
+                    if (!empty($event->url)) {
+                        $eventData['conferenceData'] = [
+                            'createRequest' => [
+                                'requestId' => uniqid(),
+                                'conferenceSolutionKey' => ['type' => 'hangoutsMeet'],
+                            ],
+                        ];
+                    }
                     $googleEvent = $this->calendarService->createEvent($user, $eventData);
                     $event->google_event_id = $googleEvent->id;
                     $event->save();
@@ -220,4 +233,4 @@ class GoogleCalendarController extends Controller
             return $this->errorResponse('Failed to push local events to Google Calendar.', 500, $e->getMessage());
         }
     }
-} 
+}

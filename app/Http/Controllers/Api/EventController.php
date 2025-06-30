@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Exception;
 use App\Http\Controllers\Traits\ResponseTrait;
 
+
 class EventController extends Controller
 {
     use ResponseTrait;
@@ -29,7 +30,8 @@ class EventController extends Controller
     public function index()
     {
         try {
-            $events = auth()->user()->events;
+            // Fetch all events for public viewing
+            $events = Event::all();
             return $this->successResponse($events, 'Events fetched successfully.');
         } catch (Exception $e) {
             return $this->errorResponse('Failed to fetch events.', 500, $e->getMessage());
@@ -44,14 +46,51 @@ class EventController extends Controller
         try {
             $validated = $request->validate([
                 'title' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'location' => 'nullable|string',
                 'start' => 'required|date',
                 'end' => 'nullable|date|after_or_equal:start',
                 'allDay' => 'sometimes|boolean',
                 'groupId' => 'nullable|string',
                 'url' => 'nullable|string',
+                'recurrence' => 'nullable|array',
+                'attendees' => 'nullable|array',
+                'reminders' => 'nullable|array',
+                'visibility' => 'nullable|string|in:default,public,private,confidential',
+                'status' => 'nullable|string|in:confirmed,tentative,cancelled',
+                'colorId' => 'nullable|string',
+                'organizer' => 'nullable|array',
+                'creator' => 'nullable|array',
+                // Guest fields: required if user is not authenticated
+                'guestName' => 'required_if:user_id,null|string|max:255',
+                'guestEmail' => 'required_if:user_id,null|email|max:255',
             ]);
 
-            $validated['user_id'] = auth()->id();
+            $validated['user_id'] = auth()->id() ?? null;
+            
+            // For guests, populate guest fields and map to snake_case for the model
+            if (!auth()->check()) {
+               
+                $validated['guest_name'] = $validated['guestName'];
+                $validated['guest_email'] = $validated['guestEmail'];
+                unset($validated['guestName'], $validated['guestEmail']);
+            }
+
+            // Prevent double-booking: check for overlapping events
+            $overlap = Event::where(function($query) use ($validated) {
+                $query->where(function($q) use ($validated) {
+                    $q->where('start', '<', $validated['end'] ?? $validated['start'])
+                      ->where('end',   '>', $validated['start']);
+                })
+                ->orWhere(function($q) use ($validated) {
+                    $q->whereNull('end')
+                      ->where('start', '=', $validated['start']);
+                });
+            })->exists();
+
+            if ($overlap) {
+                return $this->errorResponse('This slot is already booked. Please choose another slot.', 409);
+            }
 
             if (empty($validated['groupId'])) {
                 $validated['groupId'] = Str::uuid()->toString();
@@ -60,11 +99,51 @@ class EventController extends Controller
             $localEvent = Event::create($validated);
             
             $user = auth()->user();
-            if ($user && $user->google_token) {
+            if ($user && $user->google_refresh_token) {
                 try {
                     $eventData = [
                         'summary' => $validated['title']
                     ];
+                    
+                    // Add description if provided
+                    if (!empty($validated['description'])) {
+                        $eventData['description'] = $validated['description'];
+                    }
+                    
+                    // Add location if provided
+                    if (!empty($validated['location'])) {
+                        $eventData['location'] = $validated['location'];
+                    }
+                    
+                    // Add attendees if provided
+                    if (!empty($validated['attendees'])) {
+                        $eventData['attendees'] = $validated['attendees'];
+                    }
+                    
+                    // Add reminders if provided
+                    if (!empty($validated['reminders'])) {
+                        $eventData['reminders'] = $validated['reminders'];
+                    }
+                    
+                    // Add recurrence if provided
+                    if (!empty($validated['recurrence'])) {
+                        $eventData['recurrence'] = $validated['recurrence'];
+                    }
+                    
+                    // Add visibility if provided
+                    if (!empty($validated['visibility'])) {
+                        $eventData['visibility'] = $validated['visibility'];
+                    }
+                    
+                    // Add status if provided
+                    if (!empty($validated['status'])) {
+                        $eventData['status'] = $validated['status'];
+                    }
+                    
+                    // Add colorId if provided
+                    if (!empty($validated['colorId'])) {
+                        $eventData['colorId'] = $validated['colorId'];
+                    }
                     
                     // Handle start date
                     if (isset($validated['allDay']) && $validated['allDay']) {
@@ -93,7 +172,7 @@ class EventController extends Controller
                     $googleEvent = $this->calendarService->createEvent($user, $eventData);
                     $localEvent->update(['google_event_id' => $googleEvent->id]);
                 } catch (Exception $e) {
-                    // Log the error or handle it as needed, but don't block the response
+                    // Google Calendar sync failed, but do not log
                 }
             }
 
@@ -108,13 +187,11 @@ class EventController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show($id)
+    public function show(Event $event)
     {
         try {
-            $event = auth()->user()->events()->findOrFail($id);
+            // The event is automatically fetched by Laravel's route model binding.
             return $this->successResponse($event, 'Event retrieved successfully.');
-        } catch (ModelNotFoundException $e) {
-            return $this->errorResponse('Event not found.', 404);
         } catch (Exception $e) {
             return $this->errorResponse('Failed to retrieve event.', 500, $e->getMessage());
         }
@@ -128,11 +205,21 @@ class EventController extends Controller
         try {
             $validated = $request->validate([
                 'title' => 'string|max:255',
+                'description' => 'nullable|string',
+                'location' => 'nullable|string',
                 'start' => 'date',
                 'end' => 'nullable|date|after_or_equal:start',
                 'allDay' => 'sometimes|boolean',
                 'groupId' => 'nullable|string',
                 'url' => 'nullable|string',
+                'recurrence' => 'nullable|array',
+                'attendees' => 'nullable|array',
+                'reminders' => 'nullable|array',
+                'visibility' => 'nullable|string|in:default,public,private,confidential',
+                'status' => 'nullable|string|in:confirmed,tentative,cancelled',
+                'colorId' => 'nullable|string',
+                'organizer' => 'nullable|array',
+                'creator' => 'nullable|array',
             ]);
 
             $event = auth()->user()->events()->findOrFail($id);
@@ -140,10 +227,66 @@ class EventController extends Controller
 
             if ($event->google_event_id) {
                 $user = auth()->user();
-                if ($user && $user->google_token) {
+                if ($user && $user->google_refresh_token) {
                     $eventData = [
                         'summary' => $validated['title'] ?? $event->title
                     ];
+                    
+                    // Add description if provided
+                    if (!empty($validated['description'])) {
+                        $eventData['description'] = $validated['description'];
+                    } elseif (isset($validated['description']) && $validated['description'] === '') {
+                        $eventData['description'] = '';
+                    }
+                    
+                    // Add location if provided
+                    if (!empty($validated['location'])) {
+                        $eventData['location'] = $validated['location'];
+                    } elseif (isset($validated['location']) && $validated['location'] === '') {
+                        $eventData['location'] = '';
+                    }
+                    
+                    // Add attendees if provided
+                    if (!empty($validated['attendees'])) {
+                        $eventData['attendees'] = $validated['attendees'];
+                    } elseif (isset($validated['attendees']) && $validated['attendees'] === []) {
+                        $eventData['attendees'] = [];
+                    }
+                    
+                    // Add reminders if provided
+                    if (!empty($validated['reminders'])) {
+                        $eventData['reminders'] = $validated['reminders'];
+                    } elseif (isset($validated['reminders']) && $validated['reminders'] === []) {
+                        $eventData['reminders'] = [];
+                    }
+                    
+                    // Add recurrence if provided
+                    if (!empty($validated['recurrence'])) {
+                        $eventData['recurrence'] = $validated['recurrence'];
+                    } elseif (isset($validated['recurrence']) && $validated['recurrence'] === []) {
+                        $eventData['recurrence'] = [];
+                    }
+                    
+                    // Add visibility if provided
+                    if (!empty($validated['visibility'])) {
+                        $eventData['visibility'] = $validated['visibility'];
+                    } elseif (isset($validated['visibility']) && $validated['visibility'] === '') {
+                        $eventData['visibility'] = '';
+                    }
+                    
+                    // Add status if provided
+                    if (!empty($validated['status'])) {
+                        $eventData['status'] = $validated['status'];
+                    } elseif (isset($validated['status']) && $validated['status'] === '') {
+                        $eventData['status'] = '';
+                    }
+                    
+                    // Add colorId if provided
+                    if (!empty($validated['colorId'])) {
+                        $eventData['colorId'] = $validated['colorId'];
+                    } elseif (isset($validated['colorId']) && $validated['colorId'] === '') {
+                        $eventData['colorId'] = '';
+                    }
                     
                     // Handle start date
                     if (isset($validated['allDay'])) {
@@ -208,16 +351,56 @@ class EventController extends Controller
     }
 
     /**
+     * Debug method to check Google Calendar connection status
+     */
+    public function debugGoogleConnection()
+    {
+        try {
+            $user = auth()->user();
+            $connectionStatus = [
+                'user_id' => $user->id,
+                'has_google_token' => !empty($user->google_token),
+                'has_google_refresh_token' => !empty($user->google_refresh_token),
+                'google_calendar_connected' => $user->google_calendar_connected,
+                'google_id' => $user->google_id,
+            ];
+            
+            // Try to test Google Calendar connection if refresh token exists
+            if ($user->google_refresh_token) {
+                try {
+                    $this->calendarService->listEvents($user, ['maxResults' => 1]);
+                    $connectionStatus['google_api_test'] = 'success';
+                } catch (Exception $e) {
+                    $connectionStatus['google_api_test'] = 'failed';
+                    $connectionStatus['google_api_error'] = $e->getMessage();
+                }
+            }
+            
+            return $this->successResponse($connectionStatus, 'Google Calendar connection status.');
+        } catch (Exception $e) {
+            return $this->errorResponse('Failed to check Google Calendar connection.', 500, $e->getMessage());
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy($id)
     {
         try {
-            $event = auth()->user()->events()->findOrFail($id);
+            $event = Event::findOrFail($id);
+
+            // An authenticated user can delete their own events or guest events.
+            if (auth()->id() !== $event->user_id && $event->user_id !== null) {
+                return $this->errorResponse('You are not authorized to delete this event.', 403);
+            }
             
             if ($event->google_event_id) {
-                $user = auth()->user();
-                if ($user && $user->google_token) {
+                // To delete from Google, we need a user context.
+                // If it's a guest event, we can't delete it from Google Calendar.
+                // If it's an owned event, use the owner's credentials.
+                $user = $event->user; // The user who owns the event
+                if ($user && $user->google_refresh_token) {
                     $this->calendarService->deleteEvent($user, $event->google_event_id);
                 }
             }

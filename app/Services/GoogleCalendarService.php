@@ -52,7 +52,7 @@ class GoogleCalendarService
         $service = $this->getServiceForUser($user);
         return $service->events->listEvents('primary', $params);
     }
-    
+
     /**
      * Get a specific event from the user's primary calendar.
      */
@@ -68,21 +68,64 @@ class GoogleCalendarService
     public function createEvent($user, $eventData)
     {
         $service = $this->getServiceForUser($user);
-        $event = new Google_Service_Calendar_Event($eventData);
-        return $service->events->insert('primary', $event);
+        $event = new \Google_Service_Calendar_Event($eventData);
+        // ✅ 'sendUpdates' => 'all' makes Google send email invites
+        return $service->events->insert('primary', $event, ['sendUpdates' => 'all']);
     }
 
     /**
      * Update an event in the user's primary calendar.
      */
-    public function updateEvent($user, $eventId, $eventData)
+    public function updateEvent($user, $googleEventId, array $updatedData)
     {
         $service = $this->getServiceForUser($user);
-        $event = $service->events->get('primary', $eventId);
-        foreach ($eventData as $key => $value) {
-            $event->$key = $value;
+        $event = $service->events->get('primary', $googleEventId);
+
+        if (!empty($updatedData['summary'])) {
+            $event->setSummary($updatedData['summary']);
         }
-        return $service->events->update('primary', $eventId, $event);
+
+        if (!empty($updatedData['description'])) {
+            $event->setDescription($updatedData['description']);
+        }
+
+        if (!empty($updatedData['location'])) {
+            $event->setLocation($updatedData['location']);
+        }
+
+        if (!empty($updatedData['start'])) {
+            $event->setStart(new \Google_Service_Calendar_EventDateTime($updatedData['start']));
+        }
+
+        if (!empty($updatedData['end'])) {
+            $event->setEnd(new \Google_Service_Calendar_EventDateTime($updatedData['end']));
+        }
+
+        if (!empty($updatedData['attendees'])) {
+            $event->setAttendees($updatedData['attendees']);
+        }
+
+        if (!empty($updatedData['colorId'])) {
+            $event->setColorId($updatedData['colorId']);
+        }
+
+        if (!empty($updatedData['visibility'])) {
+            $event->setVisibility($updatedData['visibility']);
+        }
+
+        if (!empty($updatedData['status'])) {
+            $event->setStatus($updatedData['status']);
+        }
+
+        if (!empty($updatedData['reminders'])) {
+            $event->setReminders(new \Google_Service_Calendar_EventReminders($updatedData['reminders']));
+        }
+
+        if (!empty($updatedData['recurrence'])) {
+            $event->setRecurrence($updatedData['recurrence']);
+        }
+
+        return $service->events->update('primary', $googleEventId, $event, ['sendUpdates' => 'all']);
     }
 
     /**
@@ -93,4 +136,4 @@ class GoogleCalendarService
         $service = $this->getServiceForUser($user);
         return $service->events->delete('primary', $eventId);
     }
-} 
+}

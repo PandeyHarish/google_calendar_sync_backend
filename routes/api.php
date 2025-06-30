@@ -20,16 +20,22 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-// Use auth middleware with api guard
+// Public routes (no auth)
+Route::get('/events', [EventController::class, 'index']);
+Route::get('/events/{event}', [EventController::class, 'show']);
+Route::post('/events', [EventController::class, 'store']);
+
+// Protected routes (auth required)
 Route::middleware('auth:api')->group(function () {
+    Route::put('/events/{id}', [EventController::class, 'update']);
+    Route::patch('/events/{id}', [EventController::class, 'update']);
+    Route::delete('/events/{id}', [EventController::class, 'destroy']);
     Route::get('/user', [AuthController::class, 'me']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::get('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/refresh', [AuthController::class, 'refresh']);
-
     Route::post('/auth/google/disconnect', [GoogleAuthController::class, 'disconnect']);
-
-    Route::apiResource('events', EventController::class);
     Route::apiResource('google-calendar', GoogleCalendarController::class);
     Route::post('/google-calendar/push-local', [GoogleCalendarController::class, 'pushLocalEvents']);
+    Route::get('/events/debug/google-connection', [EventController::class, 'debugGoogleConnection']);
 });
