@@ -65,13 +65,27 @@ class GoogleCalendarService
     /**
      * Create a new event in the user's primary calendar.
      */
+    // public function createEvent($user, $eventData)
+    // {
+    //     $service = $this->getServiceForUser($user);
+    //     $event = new \Google_Service_Calendar_Event($eventData);
+    //     // ✅ 'sendUpdates' => 'all' makes Google send email invites
+    //     return $service->events->insert('primary', $event, ['sendUpdates' => 'all']);
+    // }
     public function createEvent($user, $eventData)
     {
         $service = $this->getServiceForUser($user);
+
+
+
         $event = new \Google_Service_Calendar_Event($eventData);
-        // ✅ 'sendUpdates' => 'all' makes Google send email invites
-        return $service->events->insert('primary', $event, ['sendUpdates' => 'all']);
+
+        return $service->events->insert('primary', $event, [
+            'sendUpdates' => 'all',
+
+        ]);
     }
+
 
     /**
      * Update an event in the user's primary calendar.

@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Exception;
 use App\Http\Controllers\Traits\ResponseTrait;
-
+use Illuminate\Support\Facades\Log;
 
 class EventController extends Controller
 {
@@ -52,7 +52,7 @@ class EventController extends Controller
                 'end' => 'nullable|date|after_or_equal:start',
                 'allDay' => 'sometimes|boolean',
                 'groupId' => 'nullable|string',
-                'url' => 'nullable|string',
+                // 'url' => 'nullable|string',
                 'recurrence' => 'nullable|array',
                 'attendees' => 'nullable|array',
                 'reminders' => 'nullable|array',
@@ -67,25 +67,25 @@ class EventController extends Controller
             ]);
 
             $validated['user_id'] = auth()->id() ?? null;
-            
+
             // For guests, populate guest fields and map to snake_case for the model
             if (!auth()->check()) {
-               
+
                 $validated['guest_name'] = $validated['guestName'];
                 $validated['guest_email'] = $validated['guestEmail'];
                 unset($validated['guestName'], $validated['guestEmail']);
             }
 
             // Prevent double-booking: check for overlapping events
-            $overlap = Event::where(function($query) use ($validated) {
-                $query->where(function($q) use ($validated) {
+            $overlap = Event::where(function ($query) use ($validated) {
+                $query->where(function ($q) use ($validated) {
                     $q->where('start', '<', $validated['end'] ?? $validated['start'])
-                      ->where('end',   '>', $validated['start']);
+                        ->where('end', '>', $validated['start']);
                 })
-                ->orWhere(function($q) use ($validated) {
-                    $q->whereNull('end')
-                      ->where('start', '=', $validated['start']);
-                });
+                    ->orWhere(function ($q) use ($validated) {
+                        $q->whereNull('end')
+                            ->where('start', '=', $validated['start']);
+                    });
             })->exists();
 
             if ($overlap) {
@@ -95,63 +95,63 @@ class EventController extends Controller
             if (empty($validated['groupId'])) {
                 $validated['groupId'] = Str::uuid()->toString();
             }
-            
+
             $localEvent = Event::create($validated);
-            
+
             $user = auth()->user();
             if ($user && $user->google_refresh_token) {
                 try {
                     $eventData = [
                         'summary' => $validated['title']
                     ];
-                    
+
                     // Add description if provided
                     if (!empty($validated['description'])) {
                         $eventData['description'] = $validated['description'];
                     }
-                    
+
                     // Add location if provided
                     if (!empty($validated['location'])) {
                         $eventData['location'] = $validated['location'];
                     }
-                    
+
                     // Add attendees if provided
                     if (!empty($validated['attendees'])) {
                         $eventData['attendees'] = $validated['attendees'];
                     }
-                    
+
                     // Add reminders if provided
                     if (!empty($validated['reminders'])) {
                         $eventData['reminders'] = $validated['reminders'];
                     }
-                    
+
                     // Add recurrence if provided
                     if (!empty($validated['recurrence'])) {
                         $eventData['recurrence'] = $validated['recurrence'];
                     }
-                    
+
                     // Add visibility if provided
                     if (!empty($validated['visibility'])) {
                         $eventData['visibility'] = $validated['visibility'];
                     }
-                    
+
                     // Add status if provided
                     if (!empty($validated['status'])) {
                         $eventData['status'] = $validated['status'];
                     }
-                    
+
                     // Add colorId if provided
                     if (!empty($validated['colorId'])) {
                         $eventData['colorId'] = $validated['colorId'];
                     }
-                    
+
                     // Handle start date
                     if (isset($validated['allDay']) && $validated['allDay']) {
                         $eventData['start'] = ['date' => (new \DateTime($validated['start']))->format('Y-m-d')];
                     } else {
                         $eventData['start'] = ['dateTime' => (new \DateTime($validated['start']))->format(\DateTime::RFC3339)];
                     }
-                    
+
                     // Handle end date - if not provided, use start date + 1 hour
                     if (empty($validated['end'])) {
                         $endDate = new \DateTime($validated['start']);
@@ -168,7 +168,7 @@ class EventController extends Controller
                             $eventData['end'] = ['dateTime' => (new \DateTime($validated['end']))->format(\DateTime::RFC3339)];
                         }
                     }
-                    
+
                     $googleEvent = $this->calendarService->createEvent($user, $eventData);
                     $localEvent->update(['google_event_id' => $googleEvent->id]);
                 } catch (Exception $e) {
@@ -211,7 +211,7 @@ class EventController extends Controller
                 'end' => 'nullable|date|after_or_equal:start',
                 'allDay' => 'sometimes|boolean',
                 'groupId' => 'nullable|string',
-                'url' => 'nullable|string',
+                // 'url' => 'nullable|string',
                 'recurrence' => 'nullable|array',
                 'attendees' => 'nullable|array',
                 'reminders' => 'nullable|array',
@@ -231,66 +231,66 @@ class EventController extends Controller
                     $eventData = [
                         'summary' => $validated['title'] ?? $event->title
                     ];
-                    
+
                     // Add description if provided
                     if (!empty($validated['description'])) {
                         $eventData['description'] = $validated['description'];
                     } elseif (isset($validated['description']) && $validated['description'] === '') {
                         $eventData['description'] = '';
                     }
-                    
+
                     // Add location if provided
                     if (!empty($validated['location'])) {
                         $eventData['location'] = $validated['location'];
                     } elseif (isset($validated['location']) && $validated['location'] === '') {
                         $eventData['location'] = '';
                     }
-                    
+
                     // Add attendees if provided
                     if (!empty($validated['attendees'])) {
                         $eventData['attendees'] = $validated['attendees'];
                     } elseif (isset($validated['attendees']) && $validated['attendees'] === []) {
                         $eventData['attendees'] = [];
                     }
-                    
+
                     // Add reminders if provided
                     if (!empty($validated['reminders'])) {
                         $eventData['reminders'] = $validated['reminders'];
                     } elseif (isset($validated['reminders']) && $validated['reminders'] === []) {
                         $eventData['reminders'] = [];
                     }
-                    
+
                     // Add recurrence if provided
                     if (!empty($validated['recurrence'])) {
                         $eventData['recurrence'] = $validated['recurrence'];
                     } elseif (isset($validated['recurrence']) && $validated['recurrence'] === []) {
                         $eventData['recurrence'] = [];
                     }
-                    
+
                     // Add visibility if provided
                     if (!empty($validated['visibility'])) {
                         $eventData['visibility'] = $validated['visibility'];
                     } elseif (isset($validated['visibility']) && $validated['visibility'] === '') {
                         $eventData['visibility'] = '';
                     }
-                    
+
                     // Add status if provided
                     if (!empty($validated['status'])) {
                         $eventData['status'] = $validated['status'];
                     } elseif (isset($validated['status']) && $validated['status'] === '') {
                         $eventData['status'] = '';
                     }
-                    
+
                     // Add colorId if provided
                     if (!empty($validated['colorId'])) {
                         $eventData['colorId'] = $validated['colorId'];
                     } elseif (isset($validated['colorId']) && $validated['colorId'] === '') {
                         $eventData['colorId'] = '';
                     }
-                    
+
                     // Handle start date
                     if (isset($validated['allDay'])) {
-                        if($validated['allDay']){
+                        if ($validated['allDay']) {
                             $eventData['start'] = ['date' => (new \DateTime($validated['start']))->format('Y-m-d')];
                         } else {
                             $eventData['start'] = ['dateTime' => (new \DateTime($validated['start']))->format(\DateTime::RFC3339)];
@@ -322,7 +322,7 @@ class EventController extends Controller
                         }
                     } else {
                         if (isset($validated['allDay'])) {
-                            if($validated['allDay']){
+                            if ($validated['allDay']) {
                                 $eventData['end'] = ['date' => (new \DateTime($validated['end']))->format('Y-m-d')];
                             } else {
                                 $eventData['end'] = ['dateTime' => (new \DateTime($validated['end']))->format(\DateTime::RFC3339)];
@@ -364,7 +364,7 @@ class EventController extends Controller
                 'google_calendar_connected' => $user->google_calendar_connected,
                 'google_id' => $user->google_id,
             ];
-            
+
             // Try to test Google Calendar connection if refresh token exists
             if ($user->google_refresh_token) {
                 try {
@@ -375,7 +375,7 @@ class EventController extends Controller
                     $connectionStatus['google_api_error'] = $e->getMessage();
                 }
             }
-            
+
             return $this->successResponse($connectionStatus, 'Google Calendar connection status.');
         } catch (Exception $e) {
             return $this->errorResponse('Failed to check Google Calendar connection.', 500, $e->getMessage());
@@ -394,7 +394,7 @@ class EventController extends Controller
             if (auth()->id() !== $event->user_id && $event->user_id !== null) {
                 return $this->errorResponse('You are not authorized to delete this event.', 403);
             }
-            
+
             if ($event->google_event_id) {
                 // To delete from Google, we need a user context.
                 // If it's a guest event, we can't delete it from Google Calendar.
@@ -404,7 +404,7 @@ class EventController extends Controller
                     $this->calendarService->deleteEvent($user, $event->google_event_id);
                 }
             }
-            
+
             $event->delete();
 
             return $this->successResponse(null, 'Event deleted successfully.', 204);
